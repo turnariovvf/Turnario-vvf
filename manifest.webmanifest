@@ -1,0 +1,12 @@
+{
+  "name": "Turnario VVF",
+  "short_name": "Turnario VVF",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#f5f6f8",
+  "theme_color": "#b71c1c",
+  "lang": "it",
+  "icons": [
+    {"src":"icon.svg","sizes":"any","type":"image/svg+xml","purpose":"any maskable"}
+  ]
+}
