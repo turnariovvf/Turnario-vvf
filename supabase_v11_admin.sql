@@ -25,8 +25,10 @@ begin
   if upper(trim(coalesce(p_ruolo,'')))='AMMINISTRATORE' then raise exception 'Il profilo amministratore resta separato'; end if;
   if p_turno not in ('A','B','C','D') then raise exception 'Turno non valido'; end if;
   if p_pin is not null and p_pin<>'' and (length(p_pin)<>4 or p_pin !~ '^[0-9]{4}$') then raise exception 'PIN non valido'; end if;
+  insert into public.distaccamenti(nome,turno)
+  select 'Desio',p_turno
+  where not exists (select 1 from public.distaccamenti where nome='Desio' and turno=p_turno);
   select id into d from public.distaccamenti where nome='Desio' and turno=p_turno limit 1;
-  if d is null then raise exception 'Distaccamento non trovato per il turno indicato'; end if;
   insert into public.personale(distaccamento_id,nome,cognome,pin_hash,ruolo,attivo)
   values(d,trim(p_nome),trim(p_cognome),case when coalesce(p_pin,'')='' then null else crypt(p_pin,gen_salt('bf',10)) end,upper(trim(p_ruolo)),coalesce(p_attivo,true))
   returning * into r;
@@ -42,7 +44,12 @@ begin
   if upper(trim(coalesce(p_ruolo,'')))='AMMINISTRATORE' then raise exception 'Il profilo amministratore resta separato'; end if;
   if p_turno is not null and p_turno not in ('A','B','C','D') then raise exception 'Turno non valido'; end if;
   if p_pin is not null and p_pin<>'' and (length(p_pin)<>4 or p_pin !~ '^[0-9]{4}$') then raise exception 'PIN non valido'; end if;
-  if p_turno is not null then select id into d from public.distaccamenti where nome='Desio' and turno=p_turno limit 1; if d is null then raise exception 'Distaccamento non trovato per il turno indicato'; end if; end if;
+  if p_turno is not null then
+    insert into public.distaccamenti(nome,turno)
+    select 'Desio',p_turno
+    where not exists (select 1 from public.distaccamenti where nome='Desio' and turno=p_turno);
+    select id into d from public.distaccamenti where nome='Desio' and turno=p_turno limit 1;
+  end if;
   update public.personale set nome=coalesce(nullif(trim(p_nome),''),nome), cognome=coalesce(nullif(trim(p_cognome),''),cognome), ruolo=coalesce(nullif(upper(trim(p_ruolo)),''),ruolo), distaccamento_id=coalesce(d,distaccamento_id), pin_hash=case when p_pin is null or p_pin='' then pin_hash else crypt(p_pin,gen_salt('bf',10)) end, attivo=coalesce(p_attivo,attivo) where id=p_id and ruolo<>'AMMINISTRATORE' returning * into r;
   if not found then raise exception 'Profilo non trovato'; end if;
   return jsonb_build_object('id',r.id,'distaccamento_id',r.distaccamento_id,'nome',r.nome,'cognome',r.cognome,'ruolo',r.ruolo,'attivo',r.attivo);
