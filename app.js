@@ -29,8 +29,53 @@ async function disablePerson(id){if(!confirm("Disattivare questo profilo? Lo sto
 function params(){return page("Parametri","Configurazione adattabile a qualsiasi distaccamento.",`<div class="grid grid2"><div class="field"><label class="label">Nome distaccamento</label><input class="input" value="Desio"></div><div class="field"><label class="label">Turno</label><select class="input"><option>A</option><option>B</option><option selected>C</option><option>D</option></select></div><div class="field"><label class="label">Minimo totale</label><input class="input" type="number" value="1"></div><div class="field"><label class="label">Minimo Capi Squadra</label><input class="input" type="number" value="1"></div><div class="field"><label class="label">Minimo autisti</label><input class="input" type="number" value="1"></div><div class="field"><label class="label">Limite assenze</label><input class="input" type="number" value="3"></div></div><button class="btn btn-primary" onclick="alert('Parametri salvati nel collaudo locale')">Salva parametri</button>`)}
 function requests(){return page("Richieste","Ferie e licenze possono essere richieste anche molti mesi prima.",`<div class="notice">Nessuna richiesta da approvare nel collaudo.</div><div class="section"><b>Regole previste</b><ul><li>Richieste future anche a 5, 6 o 10 mesi.</li><li>Il VVF può annullare una richiesta non più necessaria.</li><li>Lo storico dell'operazione resta conservato.</li><li>Il sistema segnala i conflitti con i minimi configurati.</li></ul></div>`)}
 function coffee(){return page("Caffè","QR unico, quantità modificabile prima della conferma e conteggio individuale.",`<div class="grid grid2"><div class="card tile"><div style="font-size:34px">▦</div><h3>QR unico</h3><p>Scansione rapida dal telefono. Un caffè predefinito, con possibilità di aggiungerne altri prima della conferma.</p><button class="btn btn-primary" style="margin-top:15px" onclick="alert('Scanner QR verrà collegato al modulo nativo/PWA nel collaudo')">Configura QR</button></div><div class="card tile"><div style="font-size:34px">☕</div><h3>Periodo corrente</h3><p>Conteggio individuale automatico e gestione pagamenti.</p><div class="n" style="font-size:28px">0 €</div><button class="btn btn-soft" onclick="alert('Azzeramento disponibile solo all’amministratore')">Azzera periodo</button></div></div>`)}
+
+function turnario(){
+  const now=new Date();
+  const ym=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+  const key=state.turnDate||`${ym}-01`;
+  const d=new Date(key+'T12:00:00');
+  const y=d.getFullYear(),m=d.getMonth();
+  const first=new Date(y,m,1).getDay()||7;
+  const days=new Date(y,m+1,0).getDate();
+  const shift=state.turnShift||'A';
+  const active=state.people.filter(p=>p.attivo);
+  const byShift=active.filter(p=>(p.turno||'')===shift);
+  const cs=byShift.filter(p=>p.ruolo==='CAPO_SQUADRA');
+  const au=byShift.filter(p=>p.ruolo==='AUTISTA');
+  const vi=byShift.filter(p=>p.ruolo==='VIGILE');
+  const cells=[];
+  for(let i=1;i<first;i++) cells.push('<div class="cal-cell empty"></div>');
+  for(let day=1;day<=days;day++){
+    const ds=`${y}-${String(m+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+    const selected=ds===key?' selected':'';
+    cells.push(`<button class="cal-cell${selected}" onclick="selectTurnDate('${ds}')"><b>${day}</b><span>${esc(shift)}</span></button>`);
+  }
+  return page('Turnario','Consultazione e gestione dei turni A/B/C/D.',`
+    <div class="turn-head">
+      <div><b>${d.toLocaleDateString('it-IT',{month:'long',year:'numeric'})}</b><div class="muted">Seleziona un giorno per vedere la squadra assegnata al turno scelto.</div></div>
+      <div class="turn-tabs">${['A','B','C','D'].map(x=>`<button class="btn ${shift===x?'btn-primary':'btn-soft'} btn-small" onclick="selectTurnShift('${x}')">Turno ${x}</button>`).join('')}</div>
+    </div>
+    <div class="calendar-wrap">
+      <div class="cal-week">${['Lun','Mar','Mer','Gio','Ven','Sab','Dom'].map(x=>`<div>${x}</div>`).join('')}</div>
+      <div class="cal-grid">${cells.join('')}</div>
+    </div>
+    <div class="section"><div class="section-head"><div><h3 style="margin:0">Turno ${shift}</h3><div class="muted">${d.toLocaleDateString('it-IT',{weekday:'long',day:'2-digit',month:'long',year:'numeric'})}</div></div><span class="badge">${byShift.length} presenti nel turno</span></div>
+      <div class="grid grid3">
+        ${turnGroup('👨‍🚒','Capi Squadra',cs)}
+        ${turnGroup('🚒','Autisti',au)}
+        ${turnGroup('🧑‍🚒','Vigili',vi)}
+      </div>
+    </div>
+    <div class="notice">Per ora il calendario usa il turno assegnato a ciascun profilo e serve al collaudo. Il prossimo collegamento potrà salvare nel database le assegnazioni giornaliere e la rotazione A/B/C/D.</div>
+  `)
+}
+function turnGroup(icon,title,list){return `<div class="card tile"><div style="font-size:25px">${icon}</div><h3>${title}</h3>${list.length?list.map(p=>`<div class="mini-row"><span>${esc(p.nome)} ${esc(p.cognome)}</span><span class="muted">${esc(p.ruolo)}</span></div>`).join(''):'<div class="muted">Nessun profilo assegnato</div>'}</div>`}
+function selectTurnDate(ds){state.turnDate=ds;render()}
+function selectTurnShift(x){state.turnShift=x;render()}
+
 function simple(t,d){return page(t,d,`<div class="notice">Modulo predisposto per il collegamento al database Supabase.</div>`)}
-function render(){if(state.screen==="pin"){app.innerHTML=pinScreen();return}let s=state.section;app.innerHTML=s==="dashboard"?dashboard():s==="personale"?personnel():s==="parametri"?params():s==="richieste"?requests():s==="caffe"?coffee():simple(s==="turnario"?"Turnario":"Storico e backup","Consultazione e gestione");if(s==="personale"&&!state.loading&&!state.peopleLoaded)loadPeople()}
+function render(){if(state.screen==="pin"){app.innerHTML=pinScreen();return}let s=state.section;app.innerHTML=s==="dashboard"?dashboard():s==="personale"?personnel():s==="parametri"?params():s==="richieste"?requests():s==="caffe"?coffee():s==="turnario"?turnario():simple("Storico e backup","Consultazione e gestione");if((s==="personale"||s==="turnario")&&!state.loading&&!state.peopleLoaded)loadPeople()}
 function key(k){if(k==="clear")state.pin=state.pin.slice(0,-1);else if(k==="ok"){if(state.pin.length!==4)return;if(state.setup){localStorage.setItem("tvvf_admin_pin",state.pin);state.setup=false;state.pin="";state.screen="app"}else{if(state.pin===localStorage.getItem("tvvf_admin_pin")){state.pin="";state.screen="app"}else{alert("PIN non corretto");state.pin=""}}}else if(state.pin.length<4)state.pin+=k;render()}
 function go(s){state.screen="app";state.section=s;render();if(s==="personale")loadPeople()}
 function logout(){state.screen="pin";state.pin="";render()}
