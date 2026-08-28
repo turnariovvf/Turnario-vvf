@@ -14,3 +14,6 @@ INSTALLAZIONE
 2. Sostituire i file della PWA nel repository GitHub con quelli di questo archivio.
 3. Non pubblicare service_role/secret key.
 4. Il PIN amministratore usato nell'app deve essere lo stesso PIN presente nel profilo AMMINISTRATORE su Supabase.
+
+
+v11.5: Turnario A-B-C-D reale lato PWA + cache Service Worker aggiornata.

@@ -32,50 +32,67 @@ function coffee(){return page("Caffè","QR unico, quantità modificabile prima d
 
 function turnario(){
   const now=new Date();
-  const ym=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
-  const key=state.turnDate||`${ym}-01`;
-  const d=new Date(key+'T12:00:00');
-  const y=d.getFullYear(),m=d.getMonth();
-  const first=new Date(y,m,1).getDay()||7;
-  const days=new Date(y,m+1,0).getDate();
-  const shift=state.turnShift||'A';
-  const active=state.people.filter(p=>p.attivo);
-  const byShift=active.filter(p=>(p.turno||'')===shift);
-  const cs=byShift.filter(p=>p.ruolo==='CAPO_SQUADRA');
-  const au=byShift.filter(p=>p.ruolo==='AUTISTA');
-  const vi=byShift.filter(p=>p.ruolo==='VIGILE');
-  const cells=[];
-  for(let i=1;i<first;i++) cells.push('<div class="cal-cell empty"></div>');
-  for(let day=1;day<=days;day++){
-    const ds=`${y}-${String(m+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
-    const selected=ds===key?' selected':'';
-    cells.push(`<button class="cal-cell${selected}" onclick="selectTurnDate('${ds}')"><b>${day}</b><span>${esc(shift)}</span></button>`);
-  }
-  return page('Turnario','Consultazione e gestione dei turni A/B/C/D.',`
-    <div class="turn-head">
-      <div><b>${d.toLocaleDateString('it-IT',{month:'long',year:'numeric'})}</b><div class="muted">Seleziona un giorno per vedere la squadra assegnata al turno scelto.</div></div>
-      <div class="turn-tabs">${['A','B','C','D'].map(x=>`<button class="btn ${shift===x?'btn-primary':'btn-soft'} btn-small" onclick="selectTurnShift('${x}')">Turno ${x}</button>`).join('')}</div>
-    </div>
-    <div class="calendar-wrap">
-      <div class="cal-week">${['Lun','Mar','Mer','Gio','Ven','Sab','Dom'].map(x=>`<div>${x}</div>`).join('')}</div>
-      <div class="cal-grid">${cells.join('')}</div>
-    </div>
-    <div class="section"><div class="section-head"><div><h3 style="margin:0">Turno ${shift}</h3><div class="muted">${d.toLocaleDateString('it-IT',{weekday:'long',day:'2-digit',month:'long',year:'numeric'})}</div></div><span class="badge">${byShift.length} presenti nel turno</span></div>
-      <div class="grid grid3">
-        ${turnGroup('👨‍🚒','Capi Squadra',cs)}
-        ${turnGroup('🚒','Autisti',au)}
-        ${turnGroup('🧑‍🚒','Vigili',vi)}
+  const y=now.getFullYear(), m=now.getMonth();
+  const monthNames=["Gennaio","Febbraio","Marzo","Aprile","Maggio","Giugno","Luglio","Agosto","Settembre","Ottobre","Novembre","Dicembre"];
+  const first=new Date(y,m,1), last=new Date(y,m+1,0);
+  const start=(first.getDay()+6)%7;
+  const days=[];
+  for(let i=0;i<start;i++)days.push("");
+  for(let d=1;d<=last.getDate();d++)days.push(d);
+  while(days.length%7)days.push("");
+  const baseDate=new Date(y,0,1);
+  const dayIndex=Math.floor((now-baseDate)/86400000);
+  const cycle=["A","B","C","D"];
+  const currentTurn=cycle[((dayIndex%4)+4)%4];
+  const cells=days.map(d=>{
+    if(!d)return '<div class="card" style="min-height:72px;background:#f8f9fb;border:1px solid #eee"></div>';
+    const dt=new Date(y,m,d), idx=Math.floor((dt-baseDate)/86400000);
+    const turno=cycle[((idx%4)+4)%4];
+    const today=d===now.getDate();
+    return `<button class="card" style="min-height:82px;text-align:left;border:1px solid ${today?'#b51d2a':'#e4e6ea'};background:${today?'#fff5f5':'#fff'};cursor:pointer" onclick="selectDay(${y},${m},${d},'${turno}')">
+      <div style="display:flex;justify-content:space-between;align-items:center"><b>${d}</b><span class="badge" style="background:${today?'#b51d2a':'#f0f1f3'};color:${today?'#fff':'#333'}">${turno}</span></div>
+      <div class="muted" style="margin-top:10px">${today?'OGGI':'Turno '+turno}</div>
+    </button>`;
+  }).join("");
+  return page("Turnario","Calendario mensile e ciclo A-B-C-D.",`
+    <div class="grid grid2">
+      <div class="card" style="padding:18px">
+        <div class="eyebrow">Ciclo corrente</div>
+        <div style="font-size:34px;font-weight:800;margin:5px 0">Turno ${currentTurn}</div>
+        <div class="muted">Il calendario usa il ciclo continuo A → B → C → D.</div>
+      </div>
+      <div class="card" style="padding:18px">
+        <div class="eyebrow">Mese</div>
+        <div style="font-size:24px;font-weight:800">${monthNames[m]} ${y}</div>
+        <div class="muted">Clicca un giorno per vedere la composizione prevista.</div>
       </div>
     </div>
-    <div class="notice">Per ora il calendario usa il turno assegnato a ciascun profilo e serve al collaudo. Il prossimo collegamento potrà salvare nel database le assegnazioni giornaliere e la rotazione A/B/C/D.</div>
-  `)
+    <div class="section">
+      <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:8px;margin-bottom:8px">${["Lun","Mar","Mer","Gio","Ven","Sab","Dom"].map(x=>`<div style="text-align:center;font-weight:700;color:#666">${x}</div>`).join("")}</div>
+      <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:8px">${cells}</div>
+    </div>
+    <div id="day-detail"></div>
+  `);
 }
-function turnGroup(icon,title,list){return `<div class="card tile"><div style="font-size:25px">${icon}</div><h3>${title}</h3>${list.length?list.map(p=>`<div class="mini-row"><span>${esc(p.nome)} ${esc(p.cognome)}</span><span class="muted">${esc(p.ruolo)}</span></div>`).join(''):'<div class="muted">Nessun profilo assegnato</div>'}</div>`}
-function selectTurnDate(ds){state.turnDate=ds;render()}
-function selectTurnShift(x){state.turnShift=x;render()}
+function selectDay(y,m,d,turno){
+  const active=state.people.filter(p=>p.attivo!==false);
+  const cs=active.filter(p=>p.ruolo==="CAPO_SQUADRA"&&(!p.turno||p.turno===turno));
+  const au=active.filter(p=>p.ruolo==="AUTISTA"&&(!p.turno||p.turno===turno));
+  const vi=active.filter(p=>p.ruolo==="VIGILE"&&(!p.turno||p.turno===turno));
+  const list=(arr,empty)=>arr.length?arr.map(p=>`<div class="row"><div><b>${esc(p.nome)} ${esc(p.cognome)}</b><div class="muted">${esc(p.ruolo)} · turno ${esc(p.turno||turno)}</div></div><span class="badge">ATTIVO</span></div>`).join(""):`<div class="notice">${empty}</div>`;
+  const el=document.getElementById("day-detail");
+  if(el)el.innerHTML=`<section class="card" style="padding:20px;margin-top:18px">
+    <div class="section-head"><div><div class="eyebrow">Giorno ${String(d).padStart(2,"0")}/${String(m+1).padStart(2,"0")}/${y}</div><h2 style="margin:4px 0">Turno ${turno}</h2></div><span class="badge">A-B-C-D</span></div>
+    <div class="grid grid3">
+      <div><h3>Capi Squadra (${cs.length})</h3>${list(cs,"Nessun Capo Squadra assegnato a questo turno.")}</div>
+      <div><h3>Autisti (${au.length})</h3>${list(au,"Nessun Autista assegnato a questo turno.")}</div>
+      <div><h3>Vigili (${vi.length})</h3>${list(vi,"Nessun Vigile assegnato a questo turno.")}</div>
+    </div>
+  </section>`;
+}
 
 function simple(t,d){return page(t,d,`<div class="notice">Modulo predisposto per il collegamento al database Supabase.</div>`)}
-function render(){if(state.screen==="pin"){app.innerHTML=pinScreen();return}let s=state.section;app.innerHTML=s==="dashboard"?dashboard():s==="personale"?personnel():s==="parametri"?params():s==="richieste"?requests():s==="caffe"?coffee():s==="turnario"?turnario():simple("Storico e backup","Consultazione e gestione");if((s==="personale"||s==="turnario")&&!state.loading&&!state.peopleLoaded)loadPeople()}
+function render(){if(state.screen==="pin"){app.innerHTML=pinScreen();return}let s=state.section;app.innerHTML=s==="dashboard"?dashboard():s==="personale"?personnel():s==="parametri"?params():s==="richieste"?requests():s==="caffe"?coffee():s==="turnario"?turnario():simple("Storico e backup","Consultazione e gestione");if(s==="personale"&&!state.loading&&!state.peopleLoaded)loadPeople()}
 function key(k){if(k==="clear")state.pin=state.pin.slice(0,-1);else if(k==="ok"){if(state.pin.length!==4)return;if(state.setup){localStorage.setItem("tvvf_admin_pin",state.pin);state.setup=false;state.pin="";state.screen="app"}else{if(state.pin===localStorage.getItem("tvvf_admin_pin")){state.pin="";state.screen="app"}else{alert("PIN non corretto");state.pin=""}}}else if(state.pin.length<4)state.pin+=k;render()}
 function go(s){state.screen="app";state.section=s;render();if(s==="personale")loadPeople()}
 function logout(){state.screen="pin";state.pin="";render()}
