@@ -17,3 +17,6 @@ INSTALLAZIONE
 
 
 v11.5: Turnario A-B-C-D reale lato PWA + cache Service Worker aggiornata.
+
+
+v11.6: struttura Turno + Salto personale (1-8) per A/B/C/D. Il motore della sequenza reale non viene inventato: richiede la tabella/sequenza del turnario del distaccamento.
