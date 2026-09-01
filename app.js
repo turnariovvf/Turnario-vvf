@@ -30,39 +30,64 @@ function params(){return page("Parametri","Configurazione adattabile a qualsiasi
 function requests(){return page("Richieste","Ferie e licenze possono essere richieste anche molti mesi prima.",`<div class="notice">Nessuna richiesta da approvare nel collaudo.</div><div class="section"><b>Regole previste</b><ul><li>Richieste future anche a 5, 6 o 10 mesi.</li><li>Il VVF può annullare una richiesta non più necessaria.</li><li>Lo storico dell'operazione resta conservato.</li><li>Il sistema segnala i conflitti con i minimi configurati.</li></ul></div>`)}
 function coffee(){return page("Caffè","QR unico, quantità modificabile prima della conferma e conteggio individuale.",`<div class="grid grid2"><div class="card tile"><div style="font-size:34px">▦</div><h3>QR unico</h3><p>Scansione rapida dal telefono. Un caffè predefinito, con possibilità di aggiungerne altri prima della conferma.</p><button class="btn btn-primary" style="margin-top:15px" onclick="alert('Scanner QR verrà collegato al modulo nativo/PWA nel collaudo')">Configura QR</button></div><div class="card tile"><div style="font-size:34px">☕</div><h3>Periodo corrente</h3><p>Conteggio individuale automatico e gestione pagamenti.</p><div class="n" style="font-size:28px">0 €</div><button class="btn btn-soft" onclick="alert('Azzeramento disponibile solo all’amministratore')">Azzera periodo</button></div></div>`)}
 
+function dayDiff(a,b){return Math.round((new Date(b+'T12:00:00')-new Date(a+'T12:00:00'))/86400000)}
+const TURN_LETTERS=['A','B','C','D'];
+function mod32(n,m){return ((n%m)+m)%m}
+function turnCodeFromIndex(index){const i=mod32(index,32);return {letter:TURN_LETTERS[i%4],cycle:Math.floor(i/4)+1,label:`${TURN_LETTERS[i%4]}${Math.floor(i/4)+1}`}}
+const TURN_CALENDAR_ANCHOR='2026-01-01';
+const TURN_ANCHOR_DAY_INDEX=21; // 01/01/2026 = B6 diurno, A6 notturno
+function realCycleInfo(date,team){
+  const dayIndex=TURN_ANCHOR_DAY_INDEX+dayDiff(TURN_CALENDAR_ANCHOR,date);
+  const dayCode=turnCodeFromIndex(dayIndex), nightCode=turnCodeFromIndex(dayIndex-1);
+  let phase='Riposo',code=null;
+  if(dayCode.letter===team){phase='Diurno';code=dayCode}
+  else if(nightCode.letter===team){phase='Notturno';code=nightCode}
+  else {const teamPos=TURN_LETTERS.indexOf(team),dayPos=TURN_LETTERS.indexOf(dayCode.letter),rel=mod32(dayPos-teamPos,4);phase=rel===2?'Smontante':'Riposo'}
+  return {phase,code,dayCode,nightCode,label:code?.label||''}
+}
+function monthGridDays(y,m){const first=new Date(y,m,1),last=new Date(y,m+1,0),offset=(first.getDay()+6)%7,cells=[];for(let i=0;i<offset;i++)cells.push(null);for(let d=1;d<=last.getDate();d++)cells.push(d);while(cells.length%7)cells.push(null);return cells}
+function peopleForCode(code){if(!code)return [];const selected=window.__turnSkip;return state.people.filter(p=>p.attivo!==false&&p.turno===code.letter&&Number(p.salto)===Number(code.cycle)&&(!selected||Number(p.salto)===Number(selected)))}
 function turnario(){
-  const now=new Date(), y=now.getFullYear(), m=now.getMonth();
-  const monthNames=["Gennaio","Febbraio","Marzo","Aprile","Maggio","Giugno","Luglio","Agosto","Settembre","Ottobre","Novembre","Dicembre"];
-  const cells=[];
-  const first=new Date(y,m,1), last=new Date(y,m+1,0);
-  const start=(first.getDay()+6)%7;
-  for(let i=0;i<start;i++)cells.push("");
-  for(let d=1;d<=last.getDate();d++)cells.push(d);
-  while(cells.length%7)cells.push("");
-  return page("Turnario","Turno + salto personale. Il calendario operativo verrà calcolato sulla sequenza reale del distaccamento.",`
-    <div class="grid grid2">
-      <div class="card" style="padding:18px">
-        <div class="eyebrow">Struttura</div>
-        <h2 style="margin:5px 0">A1–A8 · B1–B8 · C1–C8 · D1–D8</h2>
-        <div class="muted">Ogni VVF avrà il proprio turno e il proprio salto.</div>
-      </div>
-      <div class="card" style="padding:18px">
-        <div class="eyebrow">Mese</div>
-        <h2 style="margin:5px 0">${monthNames[m]} ${y}</h2>
-        <div class="muted">Non inventiamo la sequenza di diurno/notturno/smontante/riposo: verrà inserita secondo il vostro turnario reale.</div>
-      </div>
+  const saved=window.__turnView||{year:new Date().getFullYear(),month:new Date().getMonth(),team:'A'};
+  window.__turnView=saved;
+  const monthNames=['Gennaio','Febbraio','Marzo','Aprile','Maggio','Giugno','Luglio','Agosto','Settembre','Ottobre','Novembre','Dicembre'];
+  const cells=monthGridDays(saved.year,saved.month), today=new Date(), todayIso=`${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
+  const active=state.people.filter(p=>p.attivo!==false);
+  const teamPeople=active.filter(p=>p.turno===saved.team).sort((a,b)=>Number(a.salto||99)-Number(b.salto||99)||a.cognome.localeCompare(b.cognome));
+  const cellHtml=cells.map(day=>{
+    if(!day)return '<div class="turn-cell empty"></div>';
+    const d=new Date(saved.year,saved.month,day),ds=`${saved.year}-${String(saved.month+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`,info=realCycleInfo(ds,saved.team);
+    let service='';
+    if(info.phase==='Diurno') service=`<div class="turn-shift day"><b>${info.label}</b><br>DIURNO</div>`;
+    else if(info.phase==='Notturno') service=`<div class="turn-shift night"><b>${info.label}</b><br>NOTTURNO</div>`;
+    else if(info.phase==='Smontante') service='<div class="turn-shift rest">SMONTANTE</div>';
+    else service='<div class="turn-shift rest">RIPOSO</div>';
+    const names=info.code?peopleForCode(info.code):[];
+    const namesHtml=names.length?`<div class="turn-names">${names.slice(0,2).map(p=>`${esc(p.nome)} ${esc(p.cognome)}`).join('<br>')}${names.length>2?`<br><span>+${names.length-2}</span>`:''}</div>`:'';
+    return `<button class="turn-cell ${ds===todayIso?'today':''}" onclick="selectTurnDate('${ds}')"><span class="turn-day-number">${day}</span>${service}${namesHtml}</button>`;
+  }).join('');
+  const roster=teamPeople.length?teamPeople.map(p=>`<div class="turn-person"><span><b>${esc(p.nome)} ${esc(p.cognome)}</b><small>${esc(p.ruolo||'VIGILE')} · ${esc(p.turno)}${p.salto?`${p.turno}${p.salto}`:''}</small></span><span class="badge">${p.turno}${p.salto||'—'}</span></div>`).join(''):'<div class="notice">Nessun VVF attivo assegnato al turno selezionato.</div>';
+  return page('Turnario','Calendario reale A/B/C/D con sequenza perpetua e salto personale.',`
+    <div class="turn-toolbar">
+      <button class="btn btn-soft" onclick="turnMonth(-1)">‹</button>
+      <div class="turn-month-title">${monthNames[saved.month]} ${saved.year}</div>
+      <button class="btn btn-soft" onclick="turnMonth(1)">›</button>
     </div>
-    <div class="notice" style="margin-top:18px">
-      <b>Passaggio attuale completato:</b> l'anagrafica può memorizzare il salto 1–8 per ogni VVF. 
-      Il prossimo motore userà quel dato per mostrare esclusivamente il calendario personale.
+    <div class="turn-controls">
+      <div><label class="label">Turno da visualizzare</label><select id="turn-team" class="input" onchange="setTurnTeam(this.value)">${TURN_LETTERS.map(x=>`<option ${saved.team===x?'selected':''}>${x}</option>`).join('')}</select></div>
+      <div><label class="label">Salto personale</label><select class="input" onchange="setTurnSkip(this.value)"><option value="">Tutti</option>${[1,2,3,4,5,6,7,8].map(x=>`<option value="${x}" ${window.__turnSkip==x?'selected':''}>${x}</option>`).join('')}</select></div>
     </div>
-    <div class="section">
-      <h3>${monthNames[m]} ${y}</h3>
-      <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:8px">${["Lun","Mar","Mer","Gio","Ven","Sab","Dom"].map(x=>`<div style="text-align:center;font-weight:700;color:#666">${x}</div>`).join("")}</div>
-      <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:8px;margin-top:8px">${cells.map(d=>d?`<div class="card" style="min-height:72px"><b>${d}</b><div class="muted" style="margin-top:8px">Salto personale</div></div>`:'<div></div>').join("")}</div>
-    </div>
+    <div class="notice"><b>Sequenza ufficiale:</b> A1 → B1 → C1 → D1 → … → A8 → B8 → C8 → D8. <b>Riferimento:</b> 01/01/2026 = B6 diurno / A6 notturno.</div>
+    <div class="turn-calendar-wrap"><div class="turn-weekdays">${['Lun','Mar','Mer','Gio','Ven','Sab','Dom'].map(x=>`<div>${x}</div>`).join('')}</div><div class="turn-calendar">${cellHtml}</div></div>
+    <div id="turn-date-detail"></div>
+    <div class="section"><h3>Personale turno ${saved.team}</h3>${roster}</div>
   `);
 }
+function turnMonth(delta){const v=window.__turnView||{year:new Date().getFullYear(),month:new Date().getMonth(),team:'A'};v.month+=delta;if(v.month<0){v.month=11;v.year--}if(v.month>11){v.month=0;v.year++}window.__turnView=v;render()}
+function setTurnTeam(team){window.__turnView={...(window.__turnView||{}),team};window.__turnSkip='';render()}
+function setTurnSkip(skip){window.__turnSkip=skip?Number(skip):'';render()}
+function selectTurnDate(ds){const v=window.__turnView||{team:'A'},info=realCycleInfo(ds,v.team),names=info.code?peopleForCode(info.code):[];const el=document.getElementById('turn-date-detail');if(!el)return;el.innerHTML=`<section class="card turn-detail"><div class="section-head"><div><div class="eyebrow">${new Date(ds+'T12:00:00').toLocaleDateString('it-IT',{weekday:'long',day:'numeric',month:'long',year:'numeric'})}</div><h3>${info.label?`${info.label} · ${info.phase}`:info.phase}</h3></div><button class="btn btn-soft btn-small" onclick="this.closest('.turn-detail').remove()">Chiudi</button></div>${names.length?names.map(p=>`<div class="turn-person"><span><b>${esc(p.nome)} ${esc(p.cognome)}</b><small>${esc(p.ruolo||'VIGILE')} · salto ${p.salto??'—'}</small></span><span class="badge">${esc(p.turno)}${p.salto||''}</span></div>`).join(''):'<div class="muted">Nessun VVF associato a questo servizio.</div>'}</section>`;el.scrollIntoView({behavior:'smooth',block:'nearest'})}
+
 function selectDay(y,m,d,turno){
   const active=state.people.filter(p=>p.attivo!==false);
   const cs=active.filter(p=>p.ruolo==="CAPO_SQUADRA"&&(!p.turno||p.turno===turno));
@@ -81,9 +106,9 @@ function selectDay(y,m,d,turno){
 }
 
 function simple(t,d){return page(t,d,`<div class="notice">Modulo predisposto per il collegamento al database Supabase.</div>`)}
-function render(){if(state.screen==="pin"){app.innerHTML=pinScreen();return}let s=state.section;app.innerHTML=s==="dashboard"?dashboard():s==="personale"?personnel():s==="parametri"?params():s==="richieste"?requests():s==="caffe"?coffee():s==="turnario"?turnario():simple("Storico e backup","Consultazione e gestione");if(s==="personale"&&!state.loading&&!state.peopleLoaded)loadPeople()}
+function render(){if(state.screen==="pin"){app.innerHTML=pinScreen();return}let s=state.section;app.innerHTML=s==="dashboard"?dashboard():s==="personale"?personnel():s==="parametri"?params():s==="richieste"?requests():s==="caffe"?coffee():s==="turnario"?turnario():simple("Storico e backup","Consultazione e gestione");if((s==="personale"||s==="turnario")&&!state.loading&&!state.peopleLoaded)loadPeople()}
 function key(k){if(k==="clear")state.pin=state.pin.slice(0,-1);else if(k==="ok"){if(state.pin.length!==4)return;if(state.setup){localStorage.setItem("tvvf_admin_pin",state.pin);state.setup=false;state.pin="";state.screen="app"}else{if(state.pin===localStorage.getItem("tvvf_admin_pin")){state.pin="";state.screen="app"}else{alert("PIN non corretto");state.pin=""}}}else if(state.pin.length<4)state.pin+=k;render()}
-function go(s){state.screen="app";state.section=s;render();if(s==="personale")loadPeople()}
+function go(s){state.screen="app";state.section=s;render();if((s==="personale"||s==="turnario")&&!state.loading&&!state.peopleLoaded)loadPeople()}
 function logout(){state.screen="pin";state.pin="";render()}
 if("serviceWorker" in navigator)navigator.serviceWorker.register("sw.js",{updateViaCache:"none"}).then(r=>r.update()).catch(()=>{});
 render();
