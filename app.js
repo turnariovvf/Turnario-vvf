@@ -60,7 +60,7 @@ function vvfSharedTurnario(){
     if(!day)return '<div class="turn-cell empty"></div>';
     const ds=`${saved.year}-${String(saved.month+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
     const info=realCycleInfo(ds,team);
-    const mioTurno=!!(info.code && Number(info.code.cycle)===salto);
+    const mioSalto=!!(info.code && Number(info.code.cycle)===salto);
     let service='';
     if(info.phase==='Diurno') service=`<div class="turn-shift day"><b>${info.label}</b><br>DIURNO</div>`;
     else if(info.phase==='Notturno') service=`<div class="turn-shift night"><b>${info.label}</b><br>NOTTURNO</div>`;
@@ -68,14 +68,14 @@ function vvfSharedTurnario(){
     else service='<div class="turn-shift rest">RIPOSO</div>';
     const abs=vvfAbsencesForDay(ds);
     const absHtml=abs.length?`<div class="turn-absence">${abs.slice(0,2).map(r=>`FERIE: ${esc(r.nome)} ${esc(r.cognome)}`).join('<br>')}${abs.length>2?`<br>+${abs.length-2} assenze`:''}</div>`:'';
-    const mioBadge=mioTurno?'<div class="turn-names"><b>IL MIO TURNO</b></div>':'';
-    return `<button class="turn-cell ${ds===todayIso?'today ':''}${mioTurno?'my-turn':''}" onclick="vvfSelectTurnDate('${ds}')"><span class="turn-day-number">${day}</span>${service}${mioBadge}${absHtml}</button>`;
+    const mioBadge=mioSalto?'<div class="turn-names"><b>IL MIO SALTO</b></div>':'';
+    return `<button class="turn-cell ${ds===todayIso?'today ':''}${mioSalto?'my-turn':''}" onclick="vvfSelectTurnDate('${ds}')"><span class="turn-day-number">${day}</span>${service}${mioBadge}${absHtml}</button>`;
   }).join('');
   const roster=teamPeople.length?teamPeople.map(p=>`<div class="turn-person ${Number(p.salto)===salto?'my-person':''}"><span><b>${esc(p.nome)} ${esc(p.cognome)}</b><small>${esc(p.ruolo||'VIGILE')} · Turno ${esc(p.turno)} · Salto ${p.salto??'—'}</small></span><span class="badge">${esc(p.turno)}${p.salto||'—'}</span></div>`).join(''):'<div class="notice">Nessun VVF attivo assegnato al tuo turno.</div>';
   return vvfLayout(`<main class="container"><div class="section-head"><div><div class="eyebrow">Calendario personale e condiviso</div><h1 class="title">Turnario</h1><div class="muted">Il tuo turno è impostato dall'amministratore e non può essere modificato da qui.</div></div><button class="btn btn-soft" onclick="vvfGo('home')">← Home</button></div>
     <section class="card" style="padding:20px">
       <div class="turn-toolbar"><button class="btn btn-soft" onclick="vvfTurnMonth(-1)">‹</button><div class="turn-month-title">${monthNames[saved.month]} ${saved.year}</div><button class="btn btn-soft" onclick="vvfTurnMonth(1)">›</button></div>
-      <div class="notice"><b>Il tuo turno:</b> ${esc(team)} · <b>Salto:</b> ${salto||'—'} · <b>Profilo:</b> ${esc(me.nome||'')} ${esc(me.cognome||'')}<br><span class="muted">Il calendario mostra il turno assegnato dall'amministratore. Le giornate del tuo salto sono evidenziate. <b>Premi su una giornata per richiedere ferie/assenza.</b></span></div>
+      <div class="notice"><b>Il tuo turno:</b> ${esc(team)} · <b>Salto:</b> ${salto||'—'} · <b>Profilo:</b> ${esc(me.nome||'')} ${esc(me.cognome||'')}<br><span class="muted">Il calendario mostra il turno assegnato dall'amministratore. Il tuo salto è evidenziato. Puoi richiedere ferie/assenza sulle giornate lavorative del tuo turno, escluso il tuo salto.</span></div>
       <div class="turn-calendar-wrap"><div class="turn-weekdays">${['Lun','Mar','Mer','Gio','Ven','Sab','Dom'].map(x=>`<div>${x}</div>`).join('')}</div><div class="turn-calendar">${cellHtml}</div></div>
       <div id="vvf-turn-date-detail"></div>
       <div class="section"><h3>Personale del turno ${esc(team)}</h3>${roster}</div>
@@ -84,7 +84,26 @@ function vvfSharedTurnario(){
 }
 function vvfTurnMonth(delta){const v=window.__vvfTurnView||{year:new Date().getFullYear(),month:new Date().getMonth(),team:state.me?.turno||'A'};v.team=state.me?.turno||v.team||'A';v.month+=delta;if(v.month<0){v.month=11;v.year--}if(v.month>11){v.month=0;v.year++}window.__vvfTurnView=v;state.vvfSharedAbsences=[];render();loadSharedAbsencesForVvfMonth()}
 function vvfSetTurnTeam(team){window.__vvfTurnView={...(window.__vvfTurnView||{}),team};render();}
-function vvfSelectTurnDate(ds){const v=window.__vvfTurnView||{team:state.me?.turno||'A'},info=realCycleInfo(ds,v.team),abs=vvfAbsencesForDay(ds),el=document.getElementById('vvf-turn-date-detail');if(!el)return;const d=new Date(ds+'T12:00:00').toLocaleDateString('it-IT',{weekday:'long',day:'numeric',month:'long',year:'numeric'});const myWork=!!(info.code&&Number(info.code.cycle)===Number(state.me?.salto));if(!myWork){el.innerHTML=`<section class="card turn-detail"><div class="section-head"><div><div class="eyebrow">${d}</div><h3>${info.label?`${info.label} · ${info.phase}`:info.phase}</h3></div><button class="btn btn-soft btn-small" onclick="this.closest('.turn-detail').remove()">Chiudi</button></div>${abs.length?`<div class="section"><h4>Assenze approvate</h4>${abs.map(r=>`<div class="row"><div><b>${esc(r.nome)} ${esc(r.cognome)}</b><div>${esc(r.tipo_nome)}</div></div><span class="badge">APPROVATA</span></div>`).join('')}</div>`:''}<div class="notice">Questa non è una giornata lavorativa del tuo salto. Le ferie si possono richiedere solo sulle tue giornate lavorative.</div></section>`;el.scrollIntoView({behavior:'smooth',block:'nearest'});return}if(!confirm(`Vuoi inserire una richiesta di ferie/assenza per ${d}?`))return;el.innerHTML=`<section class="card turn-detail"><div class="section-head"><div><div class="eyebrow">${d}</div><h3>${info.label} · ${info.phase}</h3></div><button class="btn btn-soft btn-small" onclick="this.closest('.turn-detail').remove()">Chiudi</button></div>${abs.length?`<div class="section"><h4>Assenze approvate</h4>${abs.map(r=>`<div class="row"><div><b>${esc(r.nome)} ${esc(r.cognome)}</b><div>${esc(r.tipo_nome)}</div></div><span class="badge">APPROVATA</span></div>`).join('')}</div>`:''}<div id="vvf-request-form"></div></section>`;showVvfRequestForm(ds);const fine=document.getElementById('vr-fine');if(fine)fine.closest('.field')?.remove();el.scrollIntoView({behavior:'smooth',block:'nearest'})}
+function vvfSelectTurnDate(ds){
+  const v=window.__vvfTurnView||{team:state.me?.turno||'A'},info=realCycleInfo(ds,v.team),abs=vvfAbsencesForDay(ds),el=document.getElementById('vvf-turn-date-detail');
+  if(!el)return;
+  const d=new Date(ds+'T12:00:00').toLocaleDateString('it-IT',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+  const isMySalto=!!(info.code&&Number(info.code.cycle)===Number(state.me?.salto));
+  const isTurnWorkDay=!!(info.code&&Number(info.code.cycle)!==Number(state.me?.salto));
+  const absBlock=abs.length?`<div class="section"><h4>Assenze approvate</h4>${abs.map(r=>`<div class="row"><div><b>${esc(r.nome)} ${esc(r.cognome)}</b><div>${esc(r.tipo_nome)}</div></div><span class="badge">APPROVATA</span></div>`).join('')}</div>`:'';
+  if(!isTurnWorkDay){
+    const msg=isMySalto
+      ?`Questa è la tua giornata di <b>SALTO ${esc(state.me?.turno||'')}${state.me?.salto??'—'}</b>. Non devi richiedere ferie sul salto.`
+      :`Questa è una giornata di <b>${esc(info.phase||'riposo')}</b> e non è una giornata lavorativa del tuo turno.`;
+    el.innerHTML=`<section class="card turn-detail"><div class="section-head"><div><div class="eyebrow">${d}</div><h3>${info.label?`${info.label} · ${info.phase}`:info.phase}</h3></div><button class="btn btn-soft btn-small" onclick="this.closest('.turn-detail').remove()">Chiudi</button></div>${absBlock}<div class="notice">${msg}</div></section>`;
+    el.scrollIntoView({behavior:'smooth',block:'nearest'});return;
+  }
+  if(!confirm(`Vuoi inserire una richiesta di ferie/assenza per ${d}?`))return;
+  el.innerHTML=`<section class="card turn-detail"><div class="section-head"><div><div class="eyebrow">${d}</div><h3>${info.label} · ${info.phase}</h3></div><button class="btn btn-soft btn-small" onclick="this.closest('.turn-detail').remove()">Chiudi</button></div>${absBlock}<div id="vvf-request-form"></div></section>`;
+  showVvfRequestForm(ds);
+  const fine=document.getElementById('vr-fine');if(fine)fine.closest('.field')?.remove();
+  el.scrollIntoView({behavior:'smooth',block:'nearest'});
+}
 async function loadSharedAbsencesForVvfMonth(){const v=window.__vvfTurnView||{year:new Date().getFullYear(),month:new Date().getMonth()};const start=`${v.year}-${String(v.month+1).padStart(2,'0')}-01`,end=`${v.year}-${String(v.month+1).padStart(2,'0')}-${String(new Date(v.year,v.month+1,0).getDate()).padStart(2,'0')}`;try{const rows=await sbRpc('vvf_assenze_condivise',{p_session_token:vvfSession(),p_data_inizio:start,p_data_fine:end});state.vvfSharedAbsences=Array.isArray(rows)?rows:[];render()}catch(e){state.vvfSharedAbsences=[];render()}}
 async function loadSharedAbsences(){return loadSharedAbsencesForVvfMonth()}
 async function loadSharedAbsences(){const el=document.getElementById('vvf-shared-absences');if(!el)return;try{const today=new Date(),start=`${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-01`,end=`${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(new Date(today.getFullYear(),today.getMonth()+1,0).getDate()).padStart(2,'0')}`;const rows=await sbRpc('vvf_assenze_condivise',{p_session_token:vvfSession(),p_data_inizio:start,p_data_fine:end});el.innerHTML=rows.length?rows.map(r=>`<div class="row"><div><b>${esc(r.nome)} ${esc(r.cognome)}</b><div>${esc(r.tipo_nome)}</div><div class="muted">${esc(r.data_inizio)} → ${esc(r.data_fine)}</div></div><span class="badge">${esc(r.stato)}</span></div>`).join(''):'<div class="notice">Nessuna assenza approvata nel mese corrente.</div>'}catch(e){el.innerHTML=`<div class="notice">${esc(e.message)}</div>`}}
@@ -199,7 +218,6 @@ function render(){
   let s=state.section;app.innerHTML=s==='dashboard'?dashboard():s==='personale'?personnel():s==='parametri'?params():s==='richieste'?requests():s==='caffe'?coffee():s==='turnario'?turnario():simple('Storico e backup','Consultazione e gestione');
   if((s==='personale'||s==='turnario')&&!state.loading&&!state.peopleLoaded)loadPeople();
 }
-function logout(){state.screen="access";state.pin="";state.section="dashboard";state.people=[];state.peopleLoaded=false;state.loading=false;render()}
 function key(k){if(k==='clear')state.pin=state.pin.slice(0,-1);else if(k==='ok'){if(state.pin.length!==4)return;if(state.setup){localStorage.setItem('tvvf_admin_pin',state.pin);state.setup=false;state.pin='';state.screen='app'}else{if(state.pin===localStorage.getItem('tvvf_admin_pin')){state.pin='';state.screen='app'}else{alert('PIN non corretto');state.pin=''}}}else if(state.pin.length<4)state.pin+=k;render()}
 function go(s){state.screen='app';state.section=s;render();if((s==='personale'||s==='turnario')&&!state.loading&&!state.peopleLoaded)loadPeople()}
 function adminAccess(){state.screen='pin';state.pin='';render()}
