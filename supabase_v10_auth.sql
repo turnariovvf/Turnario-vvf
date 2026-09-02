@@ -24,12 +24,14 @@ set search_path=public,extensions
 as $$
 declare
   p public.personale;
+  d public.distaccamenti;
   raw text;
 begin
   if length(coalesce(p_pin,'')) <> 4 or p_pin !~ '^[0-9]{4}$' then
     raise exception 'PIN non valido';
   end if;
   select * into p from public.personale where id=p_persona_id and attivo=true;
+  select * into d from public.distaccamenti where id=p.distaccamento_id;
   if not found then raise exception 'Profilo non disponibile'; end if;
   if p.pin_hash is null or p.pin_hash = '' or crypt(p_pin,p.pin_hash) <> p.pin_hash then
     raise exception 'PIN non corretto';
@@ -37,7 +39,9 @@ begin
   raw := encode(gen_random_bytes(32),'hex');
   insert into public.app_sessions(token_hash,persona_id,expires_at)
   values (encode(digest(raw,'sha256'),'hex'),p.id,now()+interval '30 days');
-  return jsonb_build_object('token',raw,'persona_id',p.id,'ruolo',p.ruolo,'nome',p.nome,'cognome',p.cognome);
+  return jsonb_build_object('token',raw,'persona_id',p.id,'ruolo',p.ruolo,'nome',p.nome,'cognome',p.cognome,
+    'turno',d.turno,
+    'salto',p.salto);
 end $$;
 
 create or replace function public.vvf_bootstrap_admin(p_nome text,p_cognome text,p_pin text,p_distaccamento text,p_turno char(1))
