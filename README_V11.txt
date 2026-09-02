@@ -34,3 +34,10 @@ v11.9: motore turnario reale integrato. Sequenza A1-D8, riferimento 01/01/2026 =
 - Gestore Caffè indipendente dal ruolo.
 - Collegamento alle RPC Supabase per richieste e ferie condivise.
 - Motore Turnario A/B/C/D + salto 1–8 mantenuto invariato.
+
+
+TURNARIO VVF v11.9.1 – PERMESSI E RICHIESTE
+- In Personale > Modifica VVF: permessi speciali “Può validare ferie/assenze” e “Gestore Caffè”, indipendenti dal ruolo.
+- I permessi sono memorizzati in vvf_permessi_personale.
+- Il catalogo dei tipi di assenza viene letto tramite RPC autenticata, evitando l’accesso REST diretto alla tabella.
+- Eseguire una volta supabase_v11_9_permessi.sql prima di usare i nuovi permessi e le richieste.
