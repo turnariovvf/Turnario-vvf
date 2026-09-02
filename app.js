@@ -199,6 +199,7 @@ function render(){
   let s=state.section;app.innerHTML=s==='dashboard'?dashboard():s==='personale'?personnel():s==='parametri'?params():s==='richieste'?requests():s==='caffe'?coffee():s==='turnario'?turnario():simple('Storico e backup','Consultazione e gestione');
   if((s==='personale'||s==='turnario')&&!state.loading&&!state.peopleLoaded)loadPeople();
 }
+function logout(){state.screen="access";state.pin="";state.section="dashboard";state.people=[];state.peopleLoaded=false;state.loading=false;render()}
 function key(k){if(k==='clear')state.pin=state.pin.slice(0,-1);else if(k==='ok'){if(state.pin.length!==4)return;if(state.setup){localStorage.setItem('tvvf_admin_pin',state.pin);state.setup=false;state.pin='';state.screen='app'}else{if(state.pin===localStorage.getItem('tvvf_admin_pin')){state.pin='';state.screen='app'}else{alert('PIN non corretto');state.pin=''}}}else if(state.pin.length<4)state.pin+=k;render()}
 function go(s){state.screen='app';state.section=s;render();if((s==='personale'||s==='turnario')&&!state.loading&&!state.peopleLoaded)loadPeople()}
 function adminAccess(){state.screen='pin';state.pin='';render()}
