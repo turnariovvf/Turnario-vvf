@@ -60,7 +60,7 @@ function vvfSharedTurnario(){
     if(!day)return '<div class="turn-cell empty"></div>';
     const ds=`${saved.year}-${String(saved.month+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
     const info=realCycleInfo(ds,team);
-    const mioSalto=!!(info.code && info.phase==='Notturno' && Number(info.code.cycle)===salto);
+    const mioSalto=!!(info.code && Number(info.code.cycle)===salto);
     let service='';
     if(info.phase==='Diurno') service=`<div class="turn-shift day"><b>${info.label}</b><br>DIURNO</div>`;
     else if(info.phase==='Notturno') service=`<div class="turn-shift night"><b>${info.label}</b><br>NOTTURNO</div>`;
@@ -88,7 +88,7 @@ function vvfSelectTurnDate(ds){
   const v=window.__vvfTurnView||{team:state.me?.turno||'A'},info=realCycleInfo(ds,v.team),abs=vvfAbsencesForDay(ds),el=document.getElementById('vvf-turn-date-detail');
   if(!el)return;
   const d=new Date(ds+'T12:00:00').toLocaleDateString('it-IT',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
-  const isMySalto=!!(info.code&&info.phase==='Notturno'&&Number(info.code.cycle)===Number(state.me?.salto));
+  const isMySalto=!!(info.code&&Number(info.code.cycle)===Number(state.me?.salto));
   const isTurnWorkDay=!!(info.code&&!isMySalto);
   const absBlock=abs.length?`<div class="section"><h4>Assenze approvate</h4>${abs.map(r=>`<div class="row"><div><b>${esc(r.nome)} ${esc(r.cognome)}</b><div>${esc(r.tipo_nome)}</div></div><span class="badge">APPROVATA</span></div>`).join('')}</div>`:'';
   if(!isTurnWorkDay){
