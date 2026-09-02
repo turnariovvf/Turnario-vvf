@@ -34,3 +34,9 @@ v11.9: motore turnario reale integrato. Sequenza A1-D8, riferimento 01/01/2026 =
 - Gestore Caffè indipendente dal ruolo.
 - Collegamento alle RPC Supabase per richieste e ferie condivise.
 - Motore Turnario A/B/C/D + salto 1–8 mantenuto invariato.
+
+v11.9 – Richiesta ferie dal calendario
+- Cliccando una giornata del proprio salto viene mostrata una conferma per evitare tocchi accidentali.
+- Dopo la conferma si seleziona il tipo di assenza e si invia la richiesta per la sola giornata selezionata.
+- Non viene richiesta una data fine: data inizio e data fine coincidono con il giorno scelto.
+- Le giornate che non appartengono al proprio salto non consentono l'invio di una richiesta ferie.
