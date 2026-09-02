@@ -25,4 +25,12 @@ v11.6: struttura Turno + Salto personale (1-8) per A/B/C/D. Il motore della sequ
 v11.7: calendario perpetuo navigabile per mesi/anni e filtro personale per turno+salto.
 
 
-v11.8: motore turnario reale integrato. Sequenza A1-D8, riferimento 01/01/2026 = B6 diurno / A6 notturno, calendario mensile navigabile, visualizzazione Diurno/Notturno/Smontante/Riposo, associazione automatica dei VVF al turno+salto.
+v11.9: motore turnario reale integrato. Sequenza A1-D8, riferimento 01/01/2026 = B6 diurno / A6 notturno, calendario mensile navigabile, visualizzazione Diurno/Notturno/Smontante/Riposo, associazione automatica dei VVF al turno+salto.
+
+
+## v11.9 – Accesso VVF e permessi delegati
+- Accesso VVF con elenco personale e PIN individuale.
+- Area personale con turnario, richieste e validazione per i Capi Squadra.
+- Gestore Caffè indipendente dal ruolo.
+- Collegamento alle RPC Supabase per richieste e ferie condivise.
+- Motore Turnario A/B/C/D + salto 1–8 mantenuto invariato.
